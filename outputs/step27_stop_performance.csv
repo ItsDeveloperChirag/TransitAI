@@ -1,0 +1,19 @@
+route_id,stop_id,stop_name,total_predictions,mean_absolute_error,average_actual_demand,average_predicted_demand
+D03,D03_S01,Saket,68,3.062,23.85,23.85
+D01,D01_S01,Dwarka Sector 10,71,3.098,24.38,24.2
+D02,D02_S03,Netaji Subhash Place,79,3.129,26.05,26.19
+D03,D03_S04,Lajpat Nagar,80,3.254,27.95,26.95
+D02,D02_S04,Shalimar Bagh,77,3.321,27.83,27.87
+D01,D01_S03,Dhaula Kuan,66,3.368,27.86,27.01
+D03,D03_S06,Anand Vihar,65,3.368,34.06,33.06
+D03,D03_S03,INA,63,3.412,26.84,27.26
+D02,D02_S05,Azadpur,56,3.443,30.77,30.7
+D02,D02_S01,Rohini Sector 18,83,3.538,20.46,20.43
+D03,D03_S02,Hauz Khas,79,3.622,25.05,24.5
+D01,D01_S02,Palam,76,3.659,25.79,24.76
+D01,D01_S05,Karol Bagh,75,3.697,35.17,34.41
+D03,D03_S05,ITO,76,3.725,33.54,32.73
+D02,D02_S06,Kashmere Gate,79,3.857,31.48,31.08
+D02,D02_S02,Pitampura,63,3.896,21.38,22.74
+D01,D01_S06,Connaught Place,74,3.943,34.3,33.9
+D01,D01_S04,AIIMS,66,4.411,31.12,31.38

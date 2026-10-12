@@ -1,0 +1,4 @@
+route_id,total_predictions,mean_absolute_error,average_actual_demand,average_predicted_demand
+D03,431,3.414,28.52,28.0
+D02,437,3.523,26.22,26.36
+D01,428,3.693,29.81,29.31

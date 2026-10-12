@@ -1,0 +1,262 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransitAI | Demand Predictor</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f2f5fa;
+            color: #1e293b;
+        }
+
+        header {
+            background: #102a43;
+            color: white;
+            padding: 24px 7%;
+        }
+
+        header h1 { margin: 0 0 8px; }
+        header p { margin: 0; color: #d9e8f5; }
+
+        main {
+            max-width: 850px;
+            margin: 35px auto;
+            padding: 0 18px;
+        }
+
+        .card {
+            background: white;
+            padding: 26px;
+            border-radius: 14px;
+            box-shadow: 0 5px 22px #102a4312;
+        }
+
+        .fields {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        select, input, button {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 15px;
+        }
+
+        button {
+            margin-top: 22px;
+            background: #087e8b;
+            color: white;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover { background: #066773; }
+
+        .result {
+            margin-top: 22px;
+            padding: 22px;
+            border-radius: 12px;
+            background: #e7f7f4;
+            border: 1px solid #a7e3d9;
+        }
+
+        .result h2 { margin-top: 0; }
+        .number { font-size: 42px; font-weight: bold; color: #087e8b; }
+        .error { margin-top: 20px; color: #b91c1c; }
+
+        .note {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 600px) {
+            .fields { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
+    <div>
+        <h1>TransitAI</h1>
+        <p>Smart Public Transport Demand Prediction</p>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
+    <a href="/dashboard"
+       style="background:#087e8b; color:white; padding:12px 17px;
+              text-decoration:none; border-radius:8px; font-weight:bold;">
+        View Dashboard →
+    </a>
+    <a href="/forecast"
+       style="background:#087e8b; color:white; padding:12px 17px;
+              text-decoration:none; border-radius:8px; font-weight:bold;">
+        Forecast →
+    </a>
+    <a href="/map"
+       style="background:#087e8b; color:white; padding:12px 17px;
+              text-decoration:none; border-radius:8px; font-weight:bold;">
+        Map →
+    </a>
+    </div>
+</header>
+
+
+<main>
+    <section class="card">
+        <h2>Predict Passenger Demand</h2>
+        <p>Select a route and travel conditions to estimate passenger count.</p>
+
+        <form method="POST">
+            <div class="fields">
+                <div>
+                    <label for="route_id">Bus route</label>
+                    <select id="route_id" name="route_id">
+                        {% for route in routes %}
+                        <option value="{{ route.route_id }}"
+                            {% if route.route_id == default_route %}selected{% endif %}>
+                            {{ route.route_id }} - {{ route.route_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="stop_id">Bus stop</label>
+                    <select id="stop_id" name="stop_id" required>
+                        {% for stop in stops %}
+                        <option value="{{ stop.stop_id }}"
+                            {% if selected.get('stop_id') == stop.stop_id %}selected{% endif %}>
+                            {{ stop.stop_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="hour">Hour</label>
+                    <select id="hour" name="hour">
+                        {% for h in range(7, 19) %}
+                        <option value="{{ h }}"
+                            {% if selected.get('hour') == '%02d:00'|format(h) %}selected{% elif not selected and h == 9 %}selected{% endif %}>
+                            {{ '%02d:00'|format(h) }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="day_type">Day type</label>
+                    <select id="day_type" name="day_type">
+                        <option value="Weekday"
+                            {% if selected.get('day_type', 'Weekday') == 'Weekday' %}selected{% endif %}>
+                            Weekday
+                        </option>
+                        <option value="Weekend"
+                            {% if selected.get('day_type') == 'Weekend' %}selected{% endif %}>
+                            Weekend
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="traffic">Traffic level</label>
+                    <select id="traffic" name="traffic">
+                        {% for item in ['Low', 'Medium', 'High'] %}
+                        <option value="{{ item }}"
+                            {% if selected.get('traffic', 'Medium') == item %}selected{% endif %}>
+                            {{ item }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="weather">Weather</label>
+                    <select id="weather" name="weather">
+                        {% for item in ['Clear', 'Cloudy', 'Rainy'] %}
+                        <option value="{{ item }}"
+                            {% if selected.get('weather', 'Clear') == item %}selected{% endif %}>
+                            {{ item }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit">Predict Passenger Demand</button>
+        </form>
+
+        {% if prediction is not none %}
+        <section class="result">
+            <h2>Prediction Result</h2>
+            <div class="number">{{ prediction }}</div>
+            <p>Estimated passengers for the selected bus stop and time.</p>
+            <p><strong>Recommended buses:</strong> {{ recommended_buses }}</p>
+            <p class="note">
+                Based on a capacity of 50 passengers per bus
+                and a target occupancy of 80%.
+            </p>
+            <p><strong>Route:</strong> {{ selected.route_id }} - {{ selected.route_name }}</p>
+            <p><strong>Stop:</strong> {{ selected.stop_name }}</p>
+            <p><strong>Time:</strong> {{ selected.hour }}</p>
+            <p><strong>Day:</strong> {{ selected.day_type }}</p>
+            <p><strong>Traffic:</strong> {{ selected.traffic }} |
+               <strong>Weather:</strong> {{ selected.weather }}</p>
+        </section>
+        {% endif %}
+
+        {% if error %}
+        <p class="error">{{ error }}</p>
+        {% endif %}
+
+        <p class="note">
+            This prototype uses synthetic sample data. Predictions are estimates
+            and should not be treated as real-time passenger counts.
+        </p>
+    </section>
+</main>
+
+<script>
+    const routeSelect = document.getElementById("route_id");
+    const stopSelect = document.getElementById("stop_id");
+
+    routeSelect.addEventListener("change", async () => {
+        stopSelect.innerHTML = "";
+        const response = await fetch(
+            `/stops?route_id=${encodeURIComponent(routeSelect.value)}`
+        );
+
+        if (!response.ok) {
+            stopSelect.innerHTML = '<option value="">Unable to load stops</option>';
+            return;
+        }
+
+        const stops = await response.json();
+
+        stops.forEach(stop => {
+            const option = document.createElement("option");
+            option.value = stop.stop_id;
+            option.textContent = stop.stop_name;
+            stopSelect.appendChild(option);
+        });
+    });
+</script>
+</body>
+</html>

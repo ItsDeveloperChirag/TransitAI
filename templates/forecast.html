@@ -1,0 +1,239 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransitAI - Demand Forecast</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f7fb;
+            margin: 0;
+            padding: 30px;
+            color: #1f2937;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+        }
+
+        .header, .card {
+            background: white;
+            padding: 24px;
+            border-radius: 14px;
+            margin-bottom: 22px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+        }
+
+        h1 { margin-top: 0; }
+
+        .chart-container {
+            height: 350px;
+            position: relative;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th { background: #f9fafb; }
+
+        .links a {
+            margin-right: 18px;
+            color: #2563eb;
+            text-decoration: none;
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 12px; }
+            .card, .header { padding: 16px; }
+            th, td { padding: 8px 4px; font-size: 13px; }
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+
+    <div class="header">
+        <h1>7-Day Passenger Demand Forecast</h1>
+        <p>TransitAI — Smart Public Transport Planning</p>
+
+        <div class="links">
+            <a href="/">Prediction</a>
+            <a href="/dashboard">Analytics Dashboard</a>
+        </div>
+    </div>
+    
+<div class="card">
+    <h2>Generate Your Forecast</h2>
+    <p>Select a bus route and stop to forecast demand for the next seven days.</p>
+
+    <form method="GET" action="/forecast">
+        <label for="route_id"><strong>Bus Route</strong></label>
+        <select
+            id="route_id"
+            name="route_id"
+            onchange="this.form.submit()"
+            required
+            style="display:block; width:100%; padding:12px; margin:10px 0 20px;"
+        >
+            <option value="">Select a route</option>
+            {% for route in routes %}
+            <option
+                value="{{ route.route_id }}"
+                {% if selected_route == route.route_id %}selected{% endif %}
+            >
+                {{ route.route_id }} - {{ route.route_name }}
+            </option>
+            {% endfor %}
+        </select>
+    </form>
+
+    {% if selected_route %}
+    <form method="POST" action="/forecast">
+        <input type="hidden" name="route_id" value="{{ selected_route }}">
+
+        <label for="stop_id"><strong>Bus Stop</strong></label>
+        <select
+            id="stop_id"
+            name="stop_id"
+            required
+            style="display:block; width:100%; padding:12px; margin:10px 0 20px;"
+        >
+            <option value="">Select a stop</option>
+            {% for stop in available_stops %}
+            <option value="{{ stop.stop_id }}">
+                {{ stop.stop_name }} ({{ stop.stop_id }})
+            </option>
+            {% endfor %}
+        </select>
+
+        <button
+            type="submit"
+            style="background:#2563eb; color:white; padding:12px 20px;
+                   border:0; border-radius:8px; cursor:pointer;"
+        >
+            Generate Forecast
+        </button>
+    </form>
+    {% endif %}
+
+    {% if error %}
+    <p style="color:red;">{{ error }}</p>
+    {% endif %}
+</div>
+
+    <div class="card">
+        <h2>Expected Passenger Demand</h2>
+        <div class="chart-container">
+            <canvas id="forecastChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        
+        <h2>Forecast Details</h2>
+
+        {% if forecast_data and selected_route and selected_stop %}
+        <form method="POST" action="/download-forecast" style="margin-bottom: 20px;">
+            <input type="hidden" name="route_id" value="{{ selected_route }}">
+            <input type="hidden" name="stop_id" value="{{ selected_stop }}">
+
+            <button type="submit"
+                style="background:#15803d; color:white; padding:12px 18px;
+                    border:0; border-radius:8px; cursor:pointer;">
+                Download Forecast CSV
+            </button>
+        </form>
+        {% endif %}
+
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Day</th>
+                    <th>Avg. passengers/hour</th>
+                    <th>Peak Passengers/Hour</th>
+                    <th>Peak Hour</th>
+                    <th>Demand Level</th>
+                    <th>Recommended buses/hour</th>
+                    <th>Capacity Alert</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for item in forecast_data %}
+                <tr>
+                    <td>{{ item.date }}</td>
+                    <td>{{ item.day }}</td>
+                    <td>{{ item.average_passengers_per_hour }}</td>
+                    <td>{{ item.peak_passengers_per_hour }}</td>
+                    <td>{{ item.peak_hour }}</td>
+                    <td>
+                        <strong style="color: {% if item.demand_level == 'High' %}#dc2626{% elif item.demand_level == 'Moderate' %}#d97706{% else %}#15803d{% endif %};">
+                            {{ item.demand_level }}
+                        </strong>
+                    </td>
+                    <td>{{ item.recommended_buses_per_hour }}</td>
+                    <td>
+                        <span style="color: {% if item.alert.startswith('HIGH') %}#dc2626{% else %}#15803d{% endif %}; font-weight:bold;">
+                            {{ item.alert }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+    const forecastData = {{ forecast_data | tojson }};
+
+    new Chart(document.getElementById("forecastChart"), {
+        type: "line",
+        data: {
+            labels: forecastData.map(item => item.day),
+            datasets: [{
+                label: "Average passengers per hour",
+                data: forecastData.map(
+                    item => item.average_passengers_per_hour
+                ),
+                borderColor: "#2563eb",
+                backgroundColor: "rgba(37, 99, 235, 0.12)",
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: "Average passengers per hour"
+                    }
+                }
+            }
+        }
+    });
+</script>
+
+</body>
+</html>

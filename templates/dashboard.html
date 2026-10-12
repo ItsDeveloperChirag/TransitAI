@@ -1,0 +1,509 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransitAI | Analytics Dashboard</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f2f5fa;
+            color: #1e293b;
+        }
+
+        header {
+            background: #102a43;
+            color: white;
+            padding: 24px 6%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        header h1 { margin: 0 0 7px; }
+        header p { margin: 0; color: #d9e8f5; }
+
+        .nav-link {
+            background: #087e8b;
+            color: white;
+            padding: 12px 17px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .intro { margin-bottom: 22px; }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        .stat, .chart-card, .card {
+            background: white;
+            border-radius: 12px;
+            padding: 22px;
+            box-shadow: 0 4px 18px #102a430c;
+        }
+
+        .stat p {
+            margin: 0 0 12px;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .stat h2 {
+            margin: 0;
+            font-size: 29px;
+            color: #087e8b;
+        }
+
+        .charts {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 20px;
+        }
+
+        .chart-card h3 { margin-top: 0; }
+
+        .chart-area {
+            position: relative;
+            height: 300px;
+        }
+
+        .note {
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-top: 24px;
+        }
+
+        @media (max-width: 800px) {
+            .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .charts { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 450px) {
+            .stats { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+<header>
+    <div>
+        <h1>TransitAI Dashboard</h1>
+        <p>Public Transport Demand Analytics</p>
+    </div>
+    <a class="nav-link" href="/">← Back to Predictor</a>
+</header>
+
+<main>
+    <section class="intro">
+        <h2>Transport Overview</h2>
+        <p>Explore passenger demand patterns across the simulated Delhi bus network.</p>
+    </section>
+
+    <section class="stats">
+        <div class="stat">
+            <p>Total Observations</p>
+            <h2>{{ total_records }}</h2>
+        </div>
+
+        <div class="stat">
+            <p>Bus Routes</p>
+            <h2>{{ total_routes }}</h2>
+        </div>
+
+        <div class="stat">
+            <p>Bus Stops</p>
+            <h2>{{ total_stops }}</h2>
+        </div>
+
+        <div class="stat">
+            <p>Average Passengers</p>
+            <h2>{{ average_demand }}</h2>
+        </div>
+    </section>
+    
+    <section class="charts">
+        <div class="chart-card">
+            <h3>Average Demand by Route</h3>
+            <div class="chart-area">
+                <canvas id="routeChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h3>Hourly Passenger Demand</h3>
+            <div class="chart-area">
+                <canvas id="hourChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h3>Weekday vs Weekend</h3>
+            <div class="chart-area">
+                <canvas id="dayChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h3>Five Busiest Stops</h3>
+            <div class="chart-area">
+                <canvas id="stopChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Route Priority Recommendation</h2>
+
+            <p>
+                <strong>Route to prioritize:</strong>
+                {{ priority_route }}
+            </p>
+
+            <p>
+                <strong>Average passenger demand:</strong>
+                {{ priority_demand }} passengers per observation
+            </p>
+
+            <p>
+                This route has the highest average passenger demand
+                among the routes in the dataset. Consider reviewing
+                its peak-hour demand before increasing bus frequency.
+            </p>
+        </div>
+
+        <div class="card">
+            <h2>Peak-Hour Analysis</h2>
+
+            <p>
+                <strong>Busiest hour:</strong>
+                {{ peak_hour }}
+            </p>
+
+            <p>
+                <strong>Average passenger demand:</strong>
+                {{ peak_demand }} passengers per observation
+            </p>
+
+            <p>
+                This hour has the highest average passenger count
+                across the observations in the dataset.
+            </p>
+        </div>
+        <div class="card">
+            <h2>Busiest Stop Recommendation</h2>
+
+            <p>
+                <strong>Stop to monitor:</strong>
+                {{ busiest_stop }}
+            </p>
+
+            <p>
+                <strong>Average passenger demand:</strong>
+                {{ busiest_stop_demand }} passengers per observation
+            </p>
+
+            <p>
+                Monitor passenger queues and waiting times at this
+                stop before deciding whether additional service is needed.
+            </p>
+        </div>
+        <div class="card">
+            <h2>Passenger Demand Distribution</h2>
+            <div style="width: 100%; max-width: 320px; height: 300px; margin: auto;">
+                <canvas id="demandDistributionChart"></canvas>
+            </div>
+        </div>
+
+        <script>
+            new Chart(
+                document.getElementById("demandDistributionChart"),
+                {
+                    type: "doughnut",
+                    data: {
+                        labels: {{ demand_distribution_labels | tojson }},
+                        datasets: [{
+                            label: "Number of observations",
+                            data: {{ demand_distribution_values | tojson }}
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: "bottom"
+                            }
+                        }
+                    }
+                }
+            );
+        </script>
+        
+        <div class="card">
+            <h2>Demand Summary</h2>
+
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="text-align: left; padding: 10px;">
+                            Demand Level
+                        </th>
+                        <th style="text-align: right; padding: 10px;">
+                            Observations
+                        </th>
+                        <th style="text-align: right; padding: 10px;">
+                            Percentage
+                        </th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for item in demand_summary %}
+                    <tr>
+                        <td style="padding: 10px;">
+                            {{ item.level }}
+                        </td>
+                        <td style="text-align: right; padding: 10px;">
+                            {{ item.count }}
+                        </td>
+                        <td style="text-align: right; padding: 10px;">
+                            {{ item.percentage }}%
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card">
+            <h2>Route Demand Comparison</h2>
+            <p>Routes ranked by average passenger demand.</p>
+
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr>
+                            <th style="padding:12px; text-align:left;">Rank</th>
+                            <th style="padding:12px; text-align:left;">Route</th>
+                            <th style="padding:12px; text-align:left;">Average Passengers</th>
+                            <th style="padding:12px; text-align:left;">Demand Indicator</th>
+                            <th style="padding:12px; text-align:left;">Demand Level</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for i in range(route_labels|length) %}
+                        <tr>
+                            <td style="padding:12px;">{{ i + 1 }}</td>
+                            <td style="padding:12px;">{{ route_labels[i] }}</td>
+                            <td style="padding:12px;">{{ route_values[i] }}</td>
+                            <td style="padding:12px; min-width:150px;">
+                                <div style="background:#e2e8f0; border-radius:6px; height:12px; overflow:hidden;">
+                                    <div style="
+                                        width:{{ (route_values[i] / (route_values|max if route_values|max > 0 else 1) * 100)|round(1) }}%;
+                                        background:#087e8b;
+                                        height:12px;
+                                        border-radius:6px;">
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="padding:12px;">
+                                {% if route_values[i] < 20 %}
+                                    <span style="color:#15803d;">Low</span>
+                                {% elif route_values[i] <= 35 %}
+                                    <span style="color:#d97706;">Moderate</span>
+                                {% else %}
+                                    <span style="color:#dc2626;">High</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+         </div>
+
+        <!-- Actual vs Predicted Demand Chart -->
+        <div class="chart-card">
+            <h3>Actual vs Predicted Passenger Demand</h3>
+            <p>Comparison of actual passenger counts and model predictions
+               for 30 test observations.</p>
+
+            <div class="chart-area">
+                <canvas id="actualVsPredictedChart"></canvas>
+            </div>
+        </div>
+
+    </section>
+
+    <p class="note">
+        Data source: TransitAI synthetic dataset. Charts describe simulated
+        passenger counts and are not live transport-system measurements.
+    </p>
+</main>
+
+<script>
+     const dashboardData = {
+        routeLabels: {{ route_labels | tojson }},
+        routeValues: {{ route_values | tojson }},
+        hourLabels: {{ hour_labels | tojson }},
+        hourValues: {{ hour_values | tojson }},
+        dayLabels: {{ day_labels | tojson }},
+        dayValues: {{ day_values | tojson }},
+        stopLabels: {{ stop_labels | tojson }},
+        stopValues: {{ stop_values | tojson }}
+    };
+
+    const routeLabels = dashboardData.routeLabels;
+    const routeValues = dashboardData.routeValues;
+    const hourLabels = dashboardData.hourLabels;
+    const hourValues = dashboardData.hourValues;
+    const dayLabels = dashboardData.dayLabels;
+    const dayValues = dashboardData.dayValues;
+    const stopLabels = dashboardData.stopLabels;
+    const stopValues = dashboardData.stopValues;
+    const comparisonLabels = {{ comparison_labels | tojson }};
+    const actualValues = {{ actual_values | tojson }};
+    const predictedValues = {{ predicted_values | tojson }};
+
+    new Chart(document.getElementById("actualVsPredictedChart"), {
+        type: "line",
+        data: {
+            labels: comparisonLabels,
+            datasets: [
+                {
+                    label: "Actual Passengers",
+                    data: actualValues,
+                    borderColor: "#2563eb",
+                    backgroundColor: "#2563eb",
+                    tension: 0.2
+                },
+                {
+                    label: "Predicted Passengers",
+                    data: predictedValues,
+                    borderColor: "#f59e0b",
+                    backgroundColor: "#f59e0b",
+                    tension: 0.2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: "index",
+                intersect: false
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: "Test Observation"
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: "Passenger Count"
+                    }
+                }
+            }
+        }
+    });
+    new Chart(document.getElementById("routeChart"), {
+        type: "bar",
+        data: {
+            labels: routeLabels,
+            datasets: [{
+                label: "Average passengers",
+                data: routeValues,
+                backgroundColor: "#087e8b",
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    new Chart(document.getElementById("hourChart"), {
+        type: "line",
+        data: {
+            labels: hourLabels,
+            datasets: [{
+                label: "Average passengers",
+                data: hourValues,
+                borderColor: "#087e8b",
+                backgroundColor: "#087e8b22",
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    new Chart(document.getElementById("dayChart"), {
+        type: "bar",
+        data: {
+            labels: dayLabels,
+            datasets: [{
+                label: "Average passengers",
+                data: dayValues,
+                backgroundColor: ["#087e8b", "#e9a23b"],
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    new Chart(document.getElementById("stopChart"), {
+        type: "bar",
+        data: {
+            labels: stopLabels,
+            datasets: [{
+                label: "Average passengers",
+                data: stopValues,
+                backgroundColor: "#4263a6",
+                borderRadius: 5
+            }]
+        },
+        options: {
+            indexAxis: "y",
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { x: { beginAtZero: true } }
+        }
+    });
+</script>
+</body>
+</html>
